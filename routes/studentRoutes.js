@@ -13,28 +13,19 @@ const storage = multer.diskStorage({
   },
 
   filename: (req, file, cb) => {
-    cb(
-      null,
-      Date.now() + path.extname(file.originalname)
-    );
+    cb(null, Date.now() + path.extname(file.originalname));
   },
 });
-
 
 const upload = multer({ storage });
 
 router.post("/add", upload.single("faceImage"), async (req, res) => {
   try {
-    const {
-      name,
-      rollNo,
-      email,
-      course,
-      semester,
-      section,
-    } = req.body;
+    const { name, rollNo, email, course, semester, section } = req.body;
 
-    // Roll Number Check
+    const finalCourse = course.toUpperCase();
+    const finalSection = section.toUpperCase();
+
     const existingRollNo = await Student.findOne({ rollNo });
 
     if (existingRollNo) {
@@ -43,7 +34,6 @@ router.post("/add", upload.single("faceImage"), async (req, res) => {
       });
     }
 
-    // Email Check
     const existingEmail = await Student.findOne({ email });
 
     if (existingEmail) {
@@ -56,47 +46,41 @@ router.post("/add", upload.single("faceImage"), async (req, res) => {
       name,
       rollNo,
       email,
-      course,
+      course: finalCourse,
       semester,
-      section,
-      faceImage: req.file
-        ? `/uploads/${req.file.filename}`
-        : "",
+      section: finalSection,
+      faceImage: req.file ? `/uploads/${req.file.filename}` : "",
     });
 
     await student.save();
 
-// Add or update class automatically
-await ClassModel.findOneAndUpdate(
-  {
-    course,
-    section: section.toUpperCase(),
-  },
-  {
-    course,
-    section: section.toUpperCase(),
-  },
-  {
-    upsert: true,
-    new: true,
-  }
-);
+    await ClassModel.findOneAndUpdate(
+      {
+        course: finalCourse,
+        section: finalSection,
+      },
+      {
+        course: finalCourse,
+        section: finalSection,
+      },
+      {
+        upsert: true,
+        new: true,
+      }
+    );
 
-res.status(201).json({
-  message: "Student and class added successfully",
-  student,
-});
-
-    res.status(201).json({
-      message: "Student added successfully",
+    return res.status(201).json({
+      success: true,
+      message: "Student and class added successfully",
       student,
     });
-
   } catch (error) {
     console.log(error);
 
-    res.status(500).json({
+    return res.status(500).json({
+      success: false,
       message: "Server Error",
+      error: error.message,
     });
   }
 });
@@ -107,12 +91,12 @@ router.get("/", async (req, res) => {
       createdAt: -1,
     });
 
-    res.json({
+    return res.json({
       success: true,
       students,
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Students not found",
     });
@@ -130,21 +114,17 @@ router.delete("/:id", async (req, res) => {
       });
     }
 
-    // Delete attendance
     await Attendance.deleteMany({
       rollNo: student.rollNo,
     });
 
-    // Delete student
     await Student.findByIdAndDelete(req.params.id);
 
-    // Check remaining students in same class
     const remainingStudents = await Student.countDocuments({
       course: student.course,
       section: student.section,
     });
 
-    // If no students left → delete class
     if (remainingStudents === 0) {
       await ClassModel.findOneAndDelete({
         course: student.course,
@@ -152,12 +132,12 @@ router.delete("/:id", async (req, res) => {
       });
     }
 
-    res.json({
+    return res.json({
       success: true,
       message: "Student, attendance and empty class deleted successfully",
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Delete failed",
       error: error.message,
