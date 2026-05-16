@@ -66,6 +66,27 @@ router.post("/add", upload.single("faceImage"), async (req, res) => {
 
     await student.save();
 
+// Add or update class automatically
+await ClassModel.findOneAndUpdate(
+  {
+    course,
+    section: section.toUpperCase(),
+  },
+  {
+    course,
+    section: section.toUpperCase(),
+  },
+  {
+    upsert: true,
+    new: true,
+  }
+);
+
+res.status(201).json({
+  message: "Student and class added successfully",
+  student,
+});
+
     res.status(201).json({
       message: "Student added successfully",
       student,
