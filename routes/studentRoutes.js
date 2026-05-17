@@ -19,27 +19,21 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-router.post("/add", upload.single("faceImage"), async (req, res) => {
+router.post("/add", async (req, res) => {
   try {
-    const { name, rollNo, email, course, semester, section } = req.body;
+    const { name, rollNo, email, course, semester, section, faceImage } = req.body;
 
     const finalCourse = course.toUpperCase();
     const finalSection = section.toUpperCase();
 
     const existingRollNo = await Student.findOne({ rollNo });
-
     if (existingRollNo) {
-      return res.status(400).json({
-        message: "Roll Number already exists",
-      });
+      return res.status(400).json({ message: "Roll Number already exists" });
     }
 
     const existingEmail = await Student.findOne({ email });
-
     if (existingEmail) {
-      return res.status(400).json({
-        message: "Email already exists",
-      });
+      return res.status(400).json({ message: "Email already exists" });
     }
 
     const student = new Student({
@@ -49,35 +43,24 @@ router.post("/add", upload.single("faceImage"), async (req, res) => {
       course: finalCourse,
       semester,
       section: finalSection,
-      faceImage: req.file ? `/uploads/${req.file.filename}` : "",
+      faceImage,
     });
 
     await student.save();
 
     await ClassModel.findOneAndUpdate(
-      {
-        course: finalCourse,
-        section: finalSection,
-      },
-      {
-        course: finalCourse,
-        section: finalSection,
-      },
-      {
-        upsert: true,
-        new: true,
-      }
+      { course: finalCourse, section: finalSection },
+      { course: finalCourse, section: finalSection },
+      { upsert: true, new: true }
     );
 
-    return res.status(201).json({
+    res.status(201).json({
       success: true,
       message: "Student and class added successfully",
       student,
     });
   } catch (error) {
-    console.log(error);
-
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       message: "Server Error",
       error: error.message,
